@@ -1,4 +1,4 @@
-function hat = myMusic(X, r, RESOLUTION,d)
+function [hat,music_spectrum] = myMusic(X, r, RESOLUTION,d)
 
 [N,K] = size(X);
 
