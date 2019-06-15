@@ -3,7 +3,14 @@ clear all;
 
 % ============= global setting ==================
 N1 = 200;
-optMethod = 'MUSIC';
+optMethod = 'ESPRIT';
+
+N          = 4000;  % snapshot
+d          = 0.2;  % attenna spacing
+M          = 10;
+noise_var  = 1;
+RESOLUTION = 0.1;
+isCorrelated = 0;
 
 doaDeg1 = rand(1,N1)*180-90;
 err = zeros(1,N1);
@@ -18,25 +25,18 @@ for i = 1:N1
     doaDeg = [ ground(i) 10 50.2];
     DoA       = doaDeg*pi/180; %DOA’s of signals in rad.
     P          = [1 1 1];
-    N          = 2000;  % snapshot
-    d          = 0.2;  % attenna spacing
-    M          = 10;
-    noise_var  = 1;
-    RESOLUTION = 0.1;
-    isCorrelated = 0;
-    
+  
     % ============= signal ==================
     
     X = ULASig( DoA,P ,N ,d , M , noise_var, isCorrelated  );
-
-    
     K = length(DoA);
     % ============= MUSIC ==================
     if strcmp(optMethod,'MUSIC') 
         
     [hat,music_spectrum] = myMusic(X, K, RESOLUTION, d);
     elseif strcmp(optMethod,'ESPRIT')
-         [hat,music_spectrum] = myESPRIT(X, K, RESOLUTION, d);
+        Delta = M/2;
+        [hat,music_spectrum] = myESPRIT(X, K, d, Delta);
     end
 
     predict(i) = hat(1);

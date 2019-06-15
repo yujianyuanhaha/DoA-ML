@@ -2,22 +2,34 @@
 clear all;
 
 % ============= global setting ==================
-doaDeg = [-30 5.1 50.2]
+doaDeg = [10 20 30]
 DoA       = doaDeg*pi/180; %DOA’s of signals in rad.
 P          = [1 1 1];
-K          = 5;
-d          = 0.5;  % attenna spacing
-N          = 20;
-noise_var  = 1;
+M          = 20;
+d          = 0.2;  % attenna spacing
+N          = 2000;  
+noise_var  = 0.01;
 RESOLUTION = 0.1;
-isCorrelated = 1;
+isCorrelated = 0;
+K = length(DoA);
+
 
 % ============= signal ==================
 
-X = ULASig( DoA,P ,K ,d , N , noise_var, isCorrelated  );
+X = ULASig( DoA,P ,N ,d , M , noise_var, isCorrelated  );
 % ============= MUSIC ==================
 
-r = length(DoA);
-[DoA_hat,music_spectrum] = myMusic(X, r, RESOLUTION, d);
-music_spectrum = abs(music_spectrum);
-save('../plot/spec_short.mat','music_spectrum');
+% [DoA_hat,music_spectrum] = myMusic(X, K, RESOLUTION, d);
+% DoA_hat
+% music_spectrum = abs(music_spectrum);
+% figure;
+% plot(music_spectrum);
+
+
+% ============= ESPRIT ==================
+Delta = 4;
+[DoA_hat] = myESPRIT(X, K, d, Delta);
+DoA_hat
+
+
+

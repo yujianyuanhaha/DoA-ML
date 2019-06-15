@@ -1,18 +1,18 @@
-function [hat,music_spectrum] = myMusic(X, r, RESOLUTION,d)
+function [hat,music_spectrum] = myMusic(X, K, RESOLUTION,d)
 
-[N,K] = size(X);
+[M,N] = size(X);
 
 R      = X * X'/K; %Spatial covariance matrix
 [Q ,D] = eig(R); %Compute eigendecomposition of covariance matrix
-[D, I] = sort(diag(D),1,'descend'); %Find r largest eigenvalues
+[D, I] = sort(diag(D),1,'descend'); %Find K largest eigenvalues
 Q      = Q(:,I); %Sort the eigenvectors to put signal eigenvectors first
-Qs     = Q(:,1:r); %Get the signal eigenvectors
-Qn     = Q(:,r+1:N); %Get the noise eigenvectors
+Qs     = Q(:,1:K); %Get the signal eigenvectors
+Qn     = Q(:,K+1:M); %Get the noise eigenvectors
 % MUSIC algorithm
 % Define angles at which MUSIC “spectrum” will be computed
 angles = (-90:RESOLUTION:90);
 %Compute steering vectors corresponding values in angles
-a1     = exp(-1j*2*pi*d*(0:N-1)'*sin([angles(:).']*pi/180));
+a1     = exp(-1j*2*pi*d*(0:M-1)'*sin([angles(:).']*pi/180));
 for k = 1:length(angles)
     %Compute MUSIC “spectrum”
     music_spectrum(k) = (a1(:,k)'*a1(:,k)) / (a1(:,k)'* Qn * Qn'*a1(:,k));
