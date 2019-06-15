@@ -3,42 +3,45 @@
 close all;
 clear all;
 % =================== global setting ============
-note = sprintf('QE ');
+note = sprintf('snapshot & SNR');
+id = 'VS500__5';
 % ------ signal setting --------
-optSig   = 'ULA'
+optSig   = 'VectorSensor'
 % optSig   = 'ULA'
 isSend   = 1 % disable when debug
-isRadBas = 0
-isBayes  = 0
+isRadBas = 0;
+isBayes  = 0;
 % isAM     = 0
 % isFM     = 0
 % isPS     = 0
-isRand   = 1
+isRand   = 1;
 
 sigType = 'tone'
 % pulseShaping, AM, FM
 
-id = 'test';
+
 tag = strcat(id,optSig);
 tagData        = strcat(tag,'Data.mat');
+tagRawData     = strcat(tag,'RawData.mat');
 tagLabel       = strcat(tag,'Label.mat');
 tagTargetLabel = strcat(tag,'TargetLabel.mat');
 tagSampTarget  = strcat('samp',tag,'Target.mat');
 tagSampInput   = strcat('samp',tag,'Input.mat');
 
 
-theta  = [58.6   26.7 26.7 30.0    48.6]./180*pi;  % DoA
+theta  = [58.6   26.7 26.7 36.7    48.6]./180*pi;  % DoA
 P      = [1 1 1 1 1];
-K      = length(nonzeros(P));
-fc     = [ 0.55 0.55 0.55 0.85 0.45 ];
-phi_c  = [ 0 0 0 0 0];
-SNRdB  = 10;
-N      = 400;   % snapshot
-
+K      = length(nonzeros(P));   % num of source
+fc     = [ 0.55 0.65 0.75 0.85 0.45 ];
+% phi_c  = [ 0 0 0 0 0];
+phi_c  = [58.6   26.7 26.7 30.0    48.6]./180*pi;  % DoA
+SNRdB  = -5;
+N      = 500;   % snapshot
+M      = 6;  % num of Anntenna
 
 if strcmp(optSig ,'ULA')
-    M      = 8;
-    d      = 0.45;
+    
+    d      = 0.40;
     inputLen = M*(2*M+1);  % ToDo related to M
 elseif strcmp(optSig ,'VectorSensor')
     phi    = ( [360-57.4 360-69.1 13.3 106.3 360-170.8])./180*pi;
@@ -54,6 +57,7 @@ end
 setN     = [40 40];
 Sizefull = prod(setN);
 allData  = zeros(Sizefull,inputLen);
+rawData  = zeros(Sizefull,M,N);
 sampSize = round(Sizefull*0.8/100)*100;
 targetID = 1;
 
@@ -62,6 +66,7 @@ targetID = 1;
 if isRand
     theta1Rnd = rand(1,180) *pi;
     theta2Rnd = rand(1,180) *pi;
+%     theta2Rnd = theta1Rnd+ 1*pi/180; % overlap, so as mess num of source
 %     phi1Rnd = rand(1,180)*pi;
 %     phi2Rnd = rand(1,180) *pi;
 else
@@ -94,27 +99,18 @@ if isempty(dir(tagData)) & isempty(dir(tagData))
             
             
             if strcmp(optSig ,'ULA')
-                x = ULASig2(theta, P, fc, phi_c, SNRdB, d, M, N, K);
+                x = Sig(theta, P, fc, phi_c, SNRdB, d, M, N, K);
             elseif strcmp(optSig ,'VectorSensor')
                 x = VectorSensorSig(theta,phi,gamma,ita, P, fc,...
                     phi_c, SNRdB, N, dt,K,sigType);
             end
             
            
-            % ------- modulate AM/ Pulse Shaping -----
-%             if isAM 
-%                 x = myAM(x);
-%             end
-%             if isFM 
-%                 x = myFM(x);
-%             end
-%             if isPS 
-%                 x = myPulseShape(x ,4, 4, 0.25,'sqrt');           
-%             end
             % ------- compress data -----
             S = myCompress(x);
             
             allData(i,:) = S;
+            rawData(i,:,:) = x;  % for MUSIC
             Label(i).K      = K;
             Label(i).theta  = theta;
             Label(i).fc     = fc;
@@ -141,8 +137,9 @@ if isempty(dir(tagData)) & isempty(dir(tagData))
     toc;
     
 else
-    disp('data found, load data');
+    disp("data found, load data");
     load(tagData);
+    load(tagRawData);
     load(tagLabel);
     load(tagTargetLabel);
     load(tagSampInput);
@@ -158,10 +155,13 @@ Inputs = allData(1:sampSize,:)';
 Targets = TargetLabel(1:sampSize,:)';
 
 save(tagData,'allData');
+save(tagRawData,'rawData');
 save(tagLabel,'Label');
 save(tagTargetLabel,'TargetLabel');
 save(tagSampInput,'Inputs');
 save(tagSampTarget,'Targets');
+
+
 
 
 
@@ -190,21 +190,26 @@ end
 
 % =================== test ============
 tInd = tr.testInd;
-tstOutputs = net(Inputs(:, tInd));
+predict = net(Inputs(:, tInd));
 
 ground = Targets(tInd);
 
 % =================== eval ============
-tstPerform = perform(net, ground, tstOutputs)
-errors = abs(gsubtract(ground, tstOutputs));
-mse    = immse(ground, tstOutputs)
-errM = mean(errors)
+tstPerform = perform(net, ground, predict);
+errors = abs(gsubtract(ground, predict));
+mse    = immse(ground, predict);
+errM = mean(errors);
+% MAE
 eerMdeg = errM*180/pi
-errVar = var(errors)
+% RMSE
+% RMSE = sqrt(mean((y - yhat).^2));
+RMSE =  sqrt(mean((errors).^2))
+
+errVar = var(errors);
 
 save(strcat(id,'errors.mat'),'errors');
 save(strcat(id,'ground.mat'),'ground');
-save(strcat(id,'tstOutputs.mat'),'tstOutputs');
+save(strcat(id,'predict.mat'),'predict');
 
 % ======== save fig & send email =====s=======
 figure;
@@ -231,7 +236,7 @@ save(strcat(id,'hx.mat'),'hx');
 save(strcat(id,'hy.mat'),'hy');
 
 figure;
-scatter(ground,tstOutputs);
+scatter(ground,predict);
 clear title xlabel ylabel;
 grid on;
 title('ground vs ML estimate')
@@ -264,7 +269,7 @@ ploterrhist(errors);
 saveas(gcf,'hist2.png');
 
 figure;
-plotregression(ground, tstOutputs);
+plotregression(ground, predict);
 saveas(gcf,'regression.png');
 
 title = strcat('(Dell) ',optSig, ' ',note, sprintf(' mean error %.4f deg, mse %.4f deg',eerMdeg,mse));
@@ -272,12 +277,11 @@ setting = sprintf('SNRdB=%.2f; P1=%.2f, P2=%.2f, P3=%.2f, P4=%.2f, P5=%.2f, ',..
     SNRdB,P(1),P(2),P(3),P(4),P(5));
 nnSetting = sprintf('TrainSize = %d, time = %.2f, trainFcn = %s, isRadBas = %d, isBayes = %d ,%s', ...
     sampSize, tr.time(end),tr.trainFcn,isRadBas, isBayes,sigType);
-% content = strcat( setting,newline,nnSetting);
- content = strcat( setting,nnSetting);
+content = strcat( setting,newline,nnSetting);
 attachment = {'hist.png','cdf.png','scatter.png','nn.png',...
     'perf.png','trainState.png','hist2.png',...
-    'regression.png',strcat(id,'errors.mat'),strcat(id,'ground.mat'),strcat(id,'tstOutputs.mat'),...
-    strcat(id,'hx.mat'),strcat(id,'hy.mat'),mfilename};
+    'regression.png',strcat(id,'errors.mat'),strcat(id,'ground.mat'),strcat(id,'predict.mat'),...
+    strcat(id,'hx.mat'),strcat(id,'hy.mat'),mfilename,'Sig.m'};
 if isSend
     sendEmail(title,content,attachment);
 end

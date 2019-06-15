@@ -35,12 +35,12 @@ for i = 1:N1
     if strcmp(optMethod,'MUSIC') 
         
     [hat,music_spectrum] = myMusic(X, K, RESOLUTION, d);
-    elseif strcmp(optMethod,'ESPRIT')
-         [hat,music_spectrum] = myESPRIT(X, K, RESOLUTION, d);
+    elseif strcmp(optMethod,'E')
+         [hat,music_spectrum] = myMusic(X, K, RESOLUTION, d);
     end
 
     predict(i) = hat(1);
-    err(i) = ground(i) - predict(i);
+    err(i) = ground(i) - predict(i)
 
     if mod(i,M/10)
         disp( sprintf("prccess %.2f %%",i*100.0/M) );    

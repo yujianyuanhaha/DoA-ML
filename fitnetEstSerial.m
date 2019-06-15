@@ -3,22 +3,18 @@
 close all;
 clear all;
 % =================== global setting ============
-note = sprintf('QE ');
+note = sprintf('test');
 % ------ signal setting --------
-optSig   = 'ULA'
-% optSig   = 'ULA'
+optSig   = 'VectorSensor'
 isSend   = 1 % disable when debug
 isRadBas = 0
 isBayes  = 0
-% isAM     = 0
-% isFM     = 0
-% isPS     = 0
+isAM     = 0
+isFM     = 0
+isPS     = 0
 isRand   = 1
 
-sigType = 'tone'
-% pulseShaping, AM, FM
-
-id = 'test';
+id = 'SerialRandN1010S10';
 tag = strcat(id,optSig);
 tagData        = strcat(tag,'Data.mat');
 tagLabel       = strcat(tag,'Label.mat');
@@ -30,10 +26,10 @@ tagSampInput   = strcat('samp',tag,'Input.mat');
 theta  = [58.6   26.7 26.7 30.0    48.6]./180*pi;  % DoA
 P      = [1 1 1 1 1];
 K      = length(nonzeros(P));
-fc     = [ 0.55 0.55 0.55 0.85 0.45 ];
+fc     = [ 0.75 0.55 0.55 0.85 0.45 ];
 phi_c  = [ 0 0 0 0 0];
 SNRdB  = 10;
-N      = 400;   % snapshot
+N      = 200;   % snapshot
 
 
 if strcmp(optSig ,'ULA')
@@ -51,7 +47,7 @@ end
 
 
 % ------ data setting --------
-setN     = [40 40];
+setN     = [90 90];
 Sizefull = prod(setN);
 allData  = zeros(Sizefull,inputLen);
 sampSize = round(Sizefull*0.8/100)*100;
@@ -62,8 +58,6 @@ targetID = 1;
 if isRand
     theta1Rnd = rand(1,180) *pi;
     theta2Rnd = rand(1,180) *pi;
-%     phi1Rnd = rand(1,180)*pi;
-%     phi2Rnd = rand(1,180) *pi;
 else
     theta1Rnd = [0:1:179]/180*pi;
     theta2Rnd = [0:1:179]/180*pi;
@@ -85,8 +79,6 @@ if isempty(dir(tagData)) & isempty(dir(tagData))
             %  -- rewrite --
             theta(1) = theta1Rnd(theta1Ind);
             theta(2) = theta1Rnd(theta2Ind);
-%             phi(1) = phi1Rnd(theta1Ind);
-%             phi(2) = phi2Rnd(theta2Ind);
 %                 theta(1) = theta1Ind;
 %                 theta(2) = theta2Ind;
             
@@ -94,23 +86,23 @@ if isempty(dir(tagData)) & isempty(dir(tagData))
             
             
             if strcmp(optSig ,'ULA')
-                x = ULASig2(theta, P, fc, phi_c, SNRdB, d, M, N, K);
+                x = ULASig(theta, P, fc, phi_c, SNRdB, d, M, N, K);
             elseif strcmp(optSig ,'VectorSensor')
                 x = VectorSensorSig(theta,phi,gamma,ita, P, fc,...
-                    phi_c, SNRdB, N, dt,K,sigType);
+                    phi_c, SNRdB, N, dt,K);
             end
             
            
             % ------- modulate AM/ Pulse Shaping -----
-%             if isAM 
-%                 x = myAM(x);
-%             end
-%             if isFM 
-%                 x = myFM(x);
-%             end
-%             if isPS 
-%                 x = myPulseShape(x ,4, 4, 0.25,'sqrt');           
-%             end
+            if isAM 
+                x = myAM(x);
+            end
+            if isFM 
+                x = myFM(x);
+            end
+            if isPS 
+                x = myPulseShape(x ,4, 4, 0.25,'sqrt');           
+            end
             % ------- compress data -----
             S = myCompress(x);
             
@@ -141,7 +133,7 @@ if isempty(dir(tagData)) & isempty(dir(tagData))
     toc;
     
 else
-    disp('data found, load data');
+    disp("data found, load data");
     load(tagData);
     load(tagLabel);
     load(tagTargetLabel);
@@ -267,13 +259,154 @@ figure;
 plotregression(ground, tstOutputs);
 saveas(gcf,'regression.png');
 
+
+
+
+
+% ===================== est the 2nd ==================================================
+% ===================== est the 2nd ==================================================
+% ===================== est the 2nd ==================================================
+% ===================== est the 2nd ==================================================
+
+
+inputLen = 79;
+targetID = 2;
+AssistID = 1;
+% -------extract Label -----
+temp = reshape([Label.theta],[5,Sizefull]);
+temp = temp';
+AssistLabel = temp(:,AssistID);   % 1st sig
+TargetLabel = temp(:,targetID);
+% ------- sample data -----
+
+
+Inputs = [allData(1:sampSize,:),AssistLabel(1:sampSize,:)]';
+Targets = TargetLabel(1:sampSize,:)';
+
+save(tagData,'allData');
+save(tagLabel,'Label');
+save(tagTargetLabel,'TargetLabel');
+save(tagSampInput,'Inputs');
+save(tagSampTarget,'Targets');
+
+
+
+% =================== train ============
+net = fitnet(hiddenLayerSize);
+
+if isRadBas &&  ~isBayes
+    numLayer = length(hiddenLayerSize);
+    for i = 1:numLayer
+        net.layers{i}.transferFcn = 'radbas';
+    end
+    [net, tr] = train(net, Inputs, Targets);
+elseif ~isRadBas && isBayes
+    net.trainFcn = 'trainbr';
+    [net, tr] = train(net, Inputs, Targets);
+elseif isRadBas && isBayes
+    numLayer = length(hiddenLayerSize);
+    for i = 1:numLayer
+        net.layers{i}.transferFcn = 'radbas';
+    end
+    net.trainFcn = 'trainbr';
+    [net, tr] = train(net, Inputs, Targets);
+else
+    [net, tr] = train(net, Inputs, Targets,'useGPU','yes');
+end
+
+% =================== test ============
+tInd = tr.testInd;
+tstOutputs = net(Inputs(:, tInd));
+
+ground = Targets(tInd);
+
+% =================== eval ============
+tstPerform = perform(net, ground, tstOutputs)
+errors = abs(gsubtract(ground, tstOutputs));
+mse    = immse(ground, tstOutputs)
+errM = mean(errors)
+eerMdeg = errM*180/pi
+errVar = var(errors)
+
+save(strcat(id,'errors.mat'),'errors');
+save(strcat(id,'ground.mat'),'ground');
+save(strcat(id,'tstOutputs.mat'),'tstOutputs');
+
+% ======== save fig & send email =====s=======
+figure;
+histogram(errors);
+clear title xlabel ylabel;
+title('estimate error histogram');
+xlabel('estimate error (rad)');
+ylabel('count');
+grid on;
+saveas(gcf,'hist.png');
+
+
+% cdf of error
+figure;
+[hy, hx] = ecdf(errors);
+plot(hx,hy);
+clear title xlabel ylabel;
+title('CDF of error');
+xlabel('estimate error (rad)');
+ylabel('P(X < x)');
+grid on;
+saveas(gcf,'cdf.png');
+save(strcat(id,'hx.mat'),'hx');
+save(strcat(id,'hy.mat'),'hy');
+
+figure;
+scatter(ground,tstOutputs);
+clear title xlabel ylabel;
+grid on;
+title('ground vs ML estimate')
+xlabel('estimate ML');
+ylabel('ground');
+saveas(gcf,'scatter.png');
+
+% neural network topoloy
+jframe = view(net);
+hFig = figure('Menubar','none', 'Position',[100 100 1200 166]);
+jpanel = get(jframe,'ContentPane');
+[~,h] = javacomponent(jpanel);
+set(h, 'units','normalized', 'position',[0 0 1 1])
+jframe.setVisible(false);
+jframe.dispose();
+set(hFig, 'PaperPositionMode', 'auto')
+saveas(hFig, 'nn.png')
+close(hFig)
+
+figure;
+plotperform(tr);
+saveas(gcf,'perf.png');
+
+figure;
+plottrainstate(tr);
+saveas(gcf,'trainState.png');
+
+figure;
+ploterrhist(errors);
+saveas(gcf,'hist2.png');
+
+figure;
+plotregression(ground, tstOutputs);
+saveas(gcf,'regression.png');
+
+
+
+
+
+
+
+
+
 title = strcat('(Dell) ',optSig, ' ',note, sprintf(' mean error %.4f deg, mse %.4f deg',eerMdeg,mse));
 setting = sprintf('SNRdB=%.2f; P1=%.2f, P2=%.2f, P3=%.2f, P4=%.2f, P5=%.2f, ',...
     SNRdB,P(1),P(2),P(3),P(4),P(5));
-nnSetting = sprintf('TrainSize = %d, time = %.2f, trainFcn = %s, isRadBas = %d, isBayes = %d ,%s', ...
-    sampSize, tr.time(end),tr.trainFcn,isRadBas, isBayes,sigType);
-% content = strcat( setting,newline,nnSetting);
- content = strcat( setting,nnSetting);
+nnSetting = sprintf('TrainSize = %d, time = %.2f, trainFcn = %s, isRadBas = %d, isBayes = %d ,isAM = %d, isPS = %d ', ...
+    sampSize, tr.time(end),tr.trainFcn, isRadBas,isBayes,isAM,isPS);
+content = strcat( setting,newline,nnSetting);
 attachment = {'hist.png','cdf.png','scatter.png','nn.png',...
     'perf.png','trainState.png','hist2.png',...
     'regression.png',strcat(id,'errors.mat'),strcat(id,'ground.mat'),strcat(id,'tstOutputs.mat'),...
@@ -281,3 +414,8 @@ attachment = {'hist.png','cdf.png','scatter.png','nn.png',...
 if isSend
     sendEmail(title,content,attachment);
 end
+
+
+
+
+

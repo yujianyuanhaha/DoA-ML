@@ -1,20 +1,25 @@
-function X = ULASig(doas,P ,K ,d , N , noise_var, isCorrelated  )
+function X = ULASig(doas,P ,N ,d , M , noise_var, isCorrelated  )
+% K - num of source
+% M - num of attena
+% K - num of snapshot
 
-r = length(doas);
+
+K = length(doas);
 
 % Steering vector matrix. Columns will contain the steering vectors
-% of the r signals
-A = exp(-1j*2*pi*d*(0:N-1)'*sin([doas(:).']));
+% of the K signals
+A = exp(-1j*2*pi*d*(0:M-1)'*sin([doas(:).']));
 % Signal and noise generation
 if isCorrelated
     % Generate random BPSK symbols for each of ther signals
-    sig = round(rand(1,K))*2-1;
-    sig = [sig;sig;sig];   
+    sig = round(rand(1,N))*2-1;
+%     sig = [sig;sig;sig];
+    sig = repmat(sig,K,1);
 else
-    sig = round(rand(r,K))*2-1;
+    sig = round(rand(K,N))*2-1;
 end
 
-noise = sqrt(noise_var/2) * (randn(N,K)+1j*randn(N,K)); %Uncorrelated noise
+noise = sqrt(noise_var/2) * (randn(M,N)+1j*randn(M,N)); %Uncorrelated noise
 X = A * diag(sqrt(P)) * sig + noise; %Generate data matrix
 
 end
