@@ -2,10 +2,10 @@
 clear all;
 
 % ============= global setting ==================
-doaDeg = [10 20 30]
+doaDeg = [20 25 33]
 DoA       = doaDeg*pi/180; %DOA’s of signals in rad.
 P          = [1 1 1];
-M          = 20;
+M          = 10;
 d          = 0.2;  % attenna spacing
 N          = 2000;  
 noise_var  = 0.01;
