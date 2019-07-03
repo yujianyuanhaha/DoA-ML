@@ -1,4 +1,22 @@
-function x = Sig(theta, Ac, fc, phi, SNRdB, d, M, N, K)
+function x = Sig(sig)
+
+
+
+theta = sig.theta;
+Ac = sig.P;
+fc = sig.f_c;
+phi_c = sig.phi_c;
+phi_i = sig.phi_c;
+
+SNRdB = sig.SNRdB;
+d = sig.d;
+M = sig.M;
+N = sig.N;
+K = sig.K;
+
+if strcmp(sig.geometry,'UCA')
+    phi = sig.phi;  % for UCA
+end
 % theta = [58.6   26.7 26.7 30.0    48.6]./180*pi;  % DoA
 % Ac     = [1 1 1 0 0];  % carrier amplitute
 % K     = length(nonzeros(a));
@@ -11,10 +29,10 @@ function x = Sig(theta, Ac, fc, phi, SNRdB, d, M, N, K)
 
 
 isBias = 1;
-optGeo = 'ULA'; %'UCA'
-optSrcSig = 'tone'; %'digital'
-optMod = 'PS'; %'AM', 'PM'
-optIntf = 'tone'; % 'chirp'
+% sig.geometry = sig.geometry; %'UCA'
+% sig.type = sig.type; %'digital'
+% sig.mod = sig.mod; %'AM', 'PM'
+% sig.intf = sig.intf; % 'chirp'
 
 % ULA
 D = [0:M-1]*d;  % relative spacing, d/lamda < 0.5
@@ -30,29 +48,28 @@ Gamma = [0:M-1]*2*pi/M;
 A = zeros(M,K);
 for m = 1:M
     for k = 1:K
-        if strcmp(optGeo,'ULA')
+        if strcmp(sig.geometry,'ULA')
             A(m,k) = exp(1j*2*pi*D(m)*cos(theta(k)));
-        elseif strcmp(optGeo,'UCA')
-            f_a = 0.1; % angular frequency
-            R = 1.0;    % radius
-            A(m,k) = exp(1j*2*pi*f_a*R*sin(theta(k))*cos(phi(k)-Gamma(m)));
+        elseif strcmp(sig.geometry,'UCA')            
+            R = 40;    % radius (relateive, R/lamda) % DO NOT set it too small
+            A(m,k) = exp(1j*2*pi*R*sin(theta(k))*cos(phi(k)-Gamma(m)));
         else
             disp('not implement yet');
         end
     end
 end
 
-% ------------- signal and noise -----------
+% ------------- signal  -----------
 S = zeros(K,N);
 for k = 1:K
     %     if k == 1
     % first line
     for n = 1:N
-        if strcmp(optSrcSig,'tone')
-            S(k,n) = Ac(k) * exp(1j*2*pi*fc(k)*n + phi(k));
+        if strcmp(sig.type,'tone')
+            S(k,n) = Ac(k) * exp(1j*2*pi*fc(k)*n + phi_c(k));
 %             S(k,n) = Ac(k) * exp(1j*2*pi*fc(k)*n + rand*180/pi);
             % not possible for random
-        elseif strcmp(optSrcSig,'digit')
+        elseif strcmp(sig.type,'digit')
             S(k,n) = sign(2*rand-1);
         end
     end
@@ -63,18 +80,32 @@ for k = 1:K
     
     
     %     end
+    
+    % ------------- modulation  -----------
+    if strcmp(sig.mod,'PS')
+        temp = myPulseShape(S(k,:), 4, 4, 0.25,'sqrt');
+        S(k,:) = temp(1:N);
+    elseif strcmp(sig.mod,'AM')
+        temp = myAM(S(k,:));
+        S(k,:) = temp(1:N);
+    elseif strcmp(sig.mod,'FM')
+        temp = myFM(S(k,:));
+        S(k,:) = temp(1:N);
+    end
+    
 end
 
+
+% ------------- noise & interference  -----------
 Noise =  sqrt(2)/(10^(SNRdB/10))* (rand(M,N) + 1j*rand(M,N));
 
 Intf = zeros(M,N);
 for i = 1:M
     for j = 1:N
-        Intf(i,j) = Ac(1) * exp(1j*2*pi*fc(1)*n + phi(1));
+        Intf(i,j) = Ac(1) * exp(1j*2*pi*fc(1)*n + phi_i(1));
 %         Intf(i,j) = Ac(1) * exp(1j*2*pi*fc(1)*n + rand*180/pi);
     end
 end
-
 
 x = A * S + Noise ;
 
