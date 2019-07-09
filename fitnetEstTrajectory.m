@@ -12,6 +12,9 @@ end
 
 % =================== global setting ============
 
+
+stackNum = 1;
+
 nn.isRad = 0;
 nn.isBayes  = 0;
 nn.hiddenLayerSize = [25 25 25];
@@ -20,7 +23,7 @@ Case.note   = sprintf('snapshot & SNR');
 Case.isSend = 0 % disable when debug
 
 sig.caseID   = 'test';
-sig.geometry = 'UCA'
+sig.geometry = 'ULA'
 sig.isRand   = 1;
 sig.type     = 'tone'
 sig.mod      = 'none'
@@ -56,7 +59,7 @@ end
 
 % ----- stack X ------
 
-stackNum = 11;
+
 allData =  myStackData( allData, stackNum);  
 sig.newLength = sig.newLength * stackNum;
 

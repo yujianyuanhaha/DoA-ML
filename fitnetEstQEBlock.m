@@ -20,7 +20,7 @@ Case.note   = sprintf('snapshot & SNR');
 Case.isSend = 0 % disable when debug
 
 sig.caseID   = 'test';
-sig.geometry = 'UCA'
+sig.geometry = 'ULA'
 sig.isRand   = 1;
 sig.type     = 'tone'
 sig.mod      = 'none'
@@ -76,6 +76,9 @@ Ytest = Y(trainSize:Sizefull,:)';
 save(strcat('./Data/',sig.caseID,'Y.mat'),      'Y'    );
 save(strcat('./Data/',sig.caseID,'Xtrain.mat'),'Xtrain');
 save(strcat('./Data/',sig.caseID,'Ytrain.mat'),'Ytrain');
+save(strcat('./Data/',sig.caseID,'Xtest.mat'),'Xtest');
+save(strcat('./Data/',sig.caseID,'Ytest.mat'),'Ytest');
+
 
 % ======================= train ================================
 [net, tr] = myTrain(nn, Xtrain, Ytrain);
