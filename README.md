@@ -30,4 +30,13 @@ Estimate Angle of arrive(AoA), or Direction of arrival(DoA) based on signals rec
   * kNN
   * SVM
 
-
+# Files
+fitEstQEBlock.m  
+- generateData
+  - Sig
+    - myPulseShape
+    - myAM
+    - myPM
+- VectorSensorSig
+- myTrain
+- myPlot 
