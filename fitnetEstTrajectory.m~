@@ -57,8 +57,7 @@ end
 % ----- stack X ------
 
 stackNum = 11;
-allData =  myStackData( allData, stackNum);  
-sig.newLength = sig.newLength * stackNum;
+allData =  myStackData( allData, stackNum);
 
 
 % ============== extract Label and Split Data====================

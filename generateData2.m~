@@ -48,10 +48,7 @@ else
     theta2Rnd = [0:1:179]/180*pi;
     
      % ====== follow trajectory ============
-     
-     % --- case 1: two loop, theta rotate, phi # -------
-%      theta1Rnd = [0:1:179]/180*pi;  % slow lower one
-%      theta2Rnd = [0:1:179]* 1.2/180*pi;  % faster upper one
+     theta1Rnd = [0:1:179]/180*pi;  % slow 
      
 end
 
@@ -118,14 +115,11 @@ toc;
 % tagTargetLabel = strcat(sig.caseID,'TargetLabel.mat');
 % tagSampTarget  = strcat('samp',sig.caseID,'Target.mat');
 % tagSampInput   = strcat('samp',sig.caseID,'Input.mat');
-
-
-% -------- no shuffle for trajectory ----------
-% for i = 1:3
-%     permID = randperm(Sizefull);
-%     allData = allData(permID,:);
-%     Label = Label(permID);
-% end
+for i = 1:3
+    permID = randperm(Sizefull);
+    allData = allData(permID,:);
+    Label = Label(permID);
+end
 
 save( strcat('./Data/',sig.caseID,'Data.mat'),    'allData');
 save( strcat('./Data/',sig.caseID,'RawData.mat'), 'rawData');
