@@ -35,9 +35,9 @@ sig.phi_c  = [58.6   26.7 26.7 30.0    48.6]./180*pi;  % DoA
 sig.SNRdB  = 5;
 sig.N      = 500;   % snapshot
 sig.M      = 6;  % num of Anntenna
-sig.setN   = [40 40];
+sig.setN   = [90 90];
 
-target.ID   = 1;
+target.ID   = [1,2];
 target.Para = 'theta';
 
 tag            = sig.caseID;

@@ -4,7 +4,15 @@
 # Angle of Arrival Estimation of Uniform Linear and Cicular Array
 # Jianyuan Jet Yu, jianyuan@vt.edu
 
+# v2; 2 dimension
+
+
 # =============== 
+
+
+
+
+
 
 import yagmail
 from myFunction import myCompress
@@ -17,8 +25,8 @@ import math
 # ======================== global setting ======================== 
 dim          = 1
 isSend       = 0     # send Email
-epochs     = 20    # number of learning epochs
-batch_size = 100
+epochs     = 200    # number of learning epochs
+batch_size = 400
 os.environ["KMP_DUPLICATE_LIB_OK"] = "1"   # sometime make "1" for Mac 
 
 TEXT    = "test" 
@@ -47,7 +55,8 @@ import numpy as np
 import hdf5storage
 from keras import regularizers
 from keras.models import Model, Sequential
-from keras.layers import Input, Dense, Lambda, Reshape, Conv1D, Conv2D, AveragePooling2D,Flatten, Dropout, SimpleRNN, LSTM, concatenate
+from keras.layers import Input, Dense, Lambda, Reshape, Conv1D, Conv2D,\
+        AveragePooling2D,Flatten, Dropout, SimpleRNN, LSTM, concatenate, Layer
 from keras import backend as K
 from keras.layers.normalization import BatchNormalization
 from keras.callbacks import EarlyStopping
@@ -74,17 +83,33 @@ early_stop = EarlyStopping(monitor='val_loss', min_delta=0, patience=5, verbose=
 #!nvidia-smi
 
 # Distance Functions
-#def dist(y_true, y_pred):    
-#    return tf.reduce_mean((tf.sqrt(tf.square(tf.abs(y_pred[:,0]-y_true[:,0]))+tf.square(tf.abs(y_pred[:,1]-y_true[:,1]))+tf.square(tf.abs(y_pred[:,2]-y_true[:,2])))))
+def true_dist(y_true, y_pred):
+    return np.sqrt(np.square(np.abs(y_pred[:,0]-y_true[:,0]))+ np.square(np.abs(y_pred[:,1]-y_true[:,1])) )
 
 def dist(y_true, y_pred):    
-    return tf.reduce_mean( tf.sqrt(tf.square(tf.abs(y_pred-y_true))))
+     return tf.reduce_mean((tf.sqrt(tf.square(tf.abs(y_pred[:,0]-y_true[:,0]))+ tf.square(tf.abs(y_pred[:,1]-y_true[:,1])))))  
 
+class RBFLayer(Layer):
+    def __init__(self, units, gamma, **kwargs):
+        super(RBFLayer, self).__init__(**kwargs)
+        self.units = units
+        self.gamma = K.cast_to_floatx(gamma)
 
-#def true_dist(y_true, y_pred):    
-#    return (np.sqrt(np.square(np.abs(y_pred[:,0]-y_true[:,0]))+np.square(np.abs(y_pred[:,1]-y_true[:,1]))+np.square(np.abs(y_pred[:,2]-y_true[:,2]))))
-def true_dist(y_true, y_pred):
-    return (np.sqrt(np.square(np.abs(y_pred-y_true))))
+    def build(self, input_shape):
+        self.mu = self.add_weight(name='mu',
+                                  shape=(int(input_shape[1]), self.units),
+                                  initializer='uniform',
+                                  trainable=True)
+        super(RBFLayer, self).build(input_shape)
+
+    def call(self, inputs):
+        diff = K.expand_dims(inputs) - self.mu
+        l2 = K.sum(K.pow(diff,2), axis=1)
+        res = K.exp(-1 * self.gamma * l2)
+        return res
+
+    def compute_output_shape(self, input_shape):
+        return (input_shape[0], self.units)
 
 
 #  =============== 
@@ -117,24 +142,24 @@ nn_input  = Input((78,1))
             
 nn_output = Flatten()(nn_input)
 # nn_output = LSTM(units=136, dropout_U = 0.2, dropout_W = 0.2)(nn_input)
-nn_output = Dense(32,activation='relu', kernel_regularizer=regularizers.l2(0.001))(nn_output)
-nn_output = Dropout(0.2)(nn_output)
+nn_output = Dense(64,activation='relu', kernel_regularizer=regularizers.l2(0.001))(nn_output)
+nn_output = RBFLayer(64, 0.5)(nn_output)
+nn_output = RBFLayer(64, 0.5)(nn_output)
+#nn_output = Dropout(0.2)(nn_output)
 #nn_output = BatchNormalization()(nn_output)
-nn_output = Dense(32,activation='relu', kernel_regularizer=regularizers.l2(0.001))(nn_output)
-nn_output = Dropout(0.2)(nn_output)
+#nn_output = Dense(64,activation='relu', kernel_regularizer=regularizers.l2(0.001))(nn_output)
+#nn_output = Dropout(0.2)(nn_output)
 #nn_output = BatchNormalization()(nn_output)
-nn_output = Dense(32,activation='relu', kernel_regularizer=regularizers.l2(0.001))(nn_output)
-nn_output = Dropout(0.2)(nn_output)
+#nn_output = Dense(64,activation='relu', kernel_regularizer=regularizers.l2(0.001))(nn_output)
+#nn_output = Dropout(0.2)(nn_output)
 #nn_output = BatchNormalization()(nn_output)
-nn_output = Dense(1,activation='linear')(nn_output)
+nn_output = Dense(2,activation='linear')(nn_output)
 #  directly output 3 para, non classify
 nn = Model(inputs=nn_input,outputs=nn_output)
 
 nn.compile(optimizer='Adam', loss='mse',metrics=[dist])
 nn.summary()
  
-nn.save('myModel.h5')
-
 
 train_hist = nn.fit(x=Xtrain,y=Ytrain,\
                     batch_size = batch_size ,epochs = epochs ,\
@@ -220,10 +245,10 @@ plt.grid(True)
 plt.legend(['train', 'validate'])
 plt.savefig('./Figpy/hist_loss.png')
 
-dim = 1
 
+dim = 0
 plt.figure(7)
-plt.scatter( Ytrain, Ypredtrain,facecolors='none',edgecolors='b')
+plt.scatter( Ytrain[:,dim], Ypredtrain[:,dim],facecolors='none',edgecolors='b')
 plt.title('dim%d train - est vs ground'%dim)
 plt.ylabel('est')
 plt.xlabel('ground')
@@ -231,7 +256,24 @@ plt.grid(True)
 plt.savefig('./Figpy/dim%d_train.png'%dim)
 
 plt.figure(8)
-plt.scatter( Ytest, Ypred,facecolors='none',edgecolors='b')
+plt.scatter( Ytest[:,dim], Ypred[:,dim],facecolors='none',edgecolors='b')
+plt.title('dim%d test - est vs ground'%dim)
+plt.ylabel('est')
+plt.xlabel('ground')
+plt.grid(True)  
+plt.savefig('./Figpy/dim%d_test.png'%dim)
+
+dim = 1
+plt.figure(9)
+plt.scatter( Ytrain[:,dim], Ypredtrain[:,dim],facecolors='none',edgecolors='b')
+plt.title('dim%d train - est vs ground'%dim)
+plt.ylabel('est')
+plt.xlabel('ground')
+plt.grid(True)  
+plt.savefig('./Figpy/dim%d_train.png'%dim)
+
+plt.figure(10)
+plt.scatter( Ytest[:,dim], Ypred[:,dim],facecolors='none',edgecolors='b')
 plt.title('dim%d test - est vs ground'%dim)
 plt.ylabel('est')
 plt.xlabel('ground')

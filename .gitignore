@@ -16,3 +16,9 @@
 *.png
 *.txt
 *.png
+*.png
+*.png
+Fig/
+data/
+*.h5
+*.png

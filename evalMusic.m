@@ -63,7 +63,7 @@ for i = 1:N1
     err = ground - predict;
 
     if mod(i,M/10)
-        disp( sprintf("prccess %.2f %%",i*100.0/M) );    
+        disp( sprintf('prccess %.2f %%',i*100.0/M) );    
     toc;
 
     end
